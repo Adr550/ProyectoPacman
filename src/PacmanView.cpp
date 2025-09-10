@@ -22,6 +22,26 @@ string instruction() {
     )""";
 }
 
+string Puntajes (string nombre1, string nombre2, int puntaje1, int puntaje2, string nombre3, int puntaje3,
+    string nombre4, int puntaje4, string nombre5, int puntaje5) {
+    return R"""(
+    ------------------------------------ c ∩ ∩ ∩ ------------------------------------
+
+                                      LeaderBoards
+    1. )""" + nombre1 + " " + to_string(puntaje1) + R"""(
+
+    2. )""" + nombre2 + " " + to_string(puntaje2) + R"""(
+
+    3. )""" + nombre3 + " " + to_string(puntaje3) + R"""(
+
+    4. )""" + nombre4 + " " + to_string(puntaje4) + R"""(
+    
+    5. )""" + nombre5 + " " + to_string(puntaje5) + R"""(
+
+    ------------------------------------ c ∩ ∩ ∩ ------------------------------------
+    )""";
+}
+
 int main() {
     cout << instruction() << endl;
     return 0;
