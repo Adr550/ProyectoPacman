@@ -1,24 +1,29 @@
 #include <iostream>
+#include <ncurses.h>  // getch()
+// #include <conio.h> Para kbhit() en Windows.
+// Para que lo detecte el sistema:
+// sudo apt-get install libncurses5-dev libncursesw5-dev
 
 using namespace std;
 
 string instruction() {
     return R"""(
-    ------------------------------------ c ∩ ∩ ∩ ------------------------------------
+-------------------------------------- c ∩ ∩ ∩ --------------------------------------
 
-    Bienvenido al juego de Pacman! Listo para el reto?
-    Instrucciones:
-    - (Jugador 1) Usa las flechas del teclado para mover a Pacman.
-    - (Jugador 2) Usa las teclas W, A, S, D para mover a Pacman en la otra pantalla.
-    - Recoge todos los puntos en el laberinto para ganar.
-    - Evita a los fantasmas! Si te atrapan no hay vuelta atras, solo tienes 3 
-      intentos.
-    - En problemas? Toma una capsula de poder para destruir a los fantasmas por un 
-      corto tiempo.
-    - Come las frutas para ganar puntos extra!
-    - Y lo mas importante, diviertete!
+Bienvenido al juego de Pacman! Listo para el reto?
+Instrucciones:
+- (Jugador 1) Usa las flechas del teclado para mover a Pacman.
+- (Jugador 2) Usa las teclas W, A, S, D para mover a Pacman en la otra pantalla.
+- Recoge todos los puntos en el laberinto para ganar.
+- Evita a los fantasmas! Si te atrapan no hay vuelta atras, solo tienes 3 intentos.
+- En problemas? Toma una capsula de poder para destruir a los fantasmas por un corto 
+  tiempo.
+- Come las frutas para ganar puntos extra!
+- Y lo mas importante, diviertete!
 
-    ------------------------------------ c ∩ ∩ ∩ ------------------------------------
+Presiona ENTER para volver al menu principal.
+
+-------------------------------------- c ∩ ∩ ∩ --------------------------------------
     )""";
 }
 
@@ -44,5 +49,10 @@ string Puntajes (string nombre1, string nombre2, int puntaje1, int puntaje2, str
 
 int main() {
     cout << instruction() << endl;
+    while (getch() != 10)  // 10 ASCII de ENTER
+    {
+        /* esperar */
+    }
+    
     return 0;
 }
