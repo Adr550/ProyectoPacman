@@ -47,6 +47,31 @@ string Puntajes (string nombre1, string nombre2, int puntaje1, int puntaje2, str
     )""";
 }
 
+string Pantalla(string j1, string j2, int pts1, int pts2) { 
+    return R"""(
+    ------------------------------------ c ∩ ∩ ∩ ------------------------------------
+
+    )"""+j1+"    Highscore       "+j2+R"""(
+    )"""+to_string(pts1)"    000000          "+to_string(pts2)+R"""(
+
+            Character / Nickname
+            7 -Shadow   "Blinky"
+            8 -Speedy   "Pinky"
+            9 -Bashful  "Inky"
+            1 -Pokey    "Clyde" 
+
+                . 10 pts
+                0 50 pts     
+
+    ------------------------------------ c ∩ ∩ ∩ ------------------------------------
+    )""";
+}
+
+int main() {
+    cout << instruction() << endl;
+    return 0;
+}
+
 // Función de logo
 void Logo() {
     printw("    ██████╗  █████╗  ██████╗███╗   ███╗ █████╗ ███╗   ██╗\n");
