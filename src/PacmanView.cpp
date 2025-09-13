@@ -47,12 +47,104 @@ string Puntajes (string nombre1, string nombre2, int puntaje1, int puntaje2, str
     )""";
 }
 
+// Función de logo
+void Logo() {
+    printw("    ██████╗  █████╗  ██████╗███╗   ███╗ █████╗ ███╗   ██╗\n");
+    printw("    ██╔══██╗██╔══██╗██╔════╝████╗ ████║██╔══██╗████╗  ██║\n");
+    printw("    ██████╔╝███████║██║     ██╔████╔██║███████║██╔██╗ ██║\n");
+    printw("    ██╔═══╝ ██╔══██║██║     ██║╚██╔╝██║██╔══██║██║╚██╗██║\n");
+    printw("    ██║     ██║  ██║╚██████╗██║ ╚═╝ ██║██║  ██║██║ ╚████║\n");
+    printw("    ╚═╝     ╚═╝  ╚═╝ ╚═════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝\n");
+    printw("\n");
+    printw("                    ● ● ● c ∩ ∩ ∩ ● ● ●\n\n");
+}
+
+// Función opciones del menu
+void Opciones(string opciones[], int tamano, int seleccionado) {
+    for (int i = 0; i < tamano; i++) {
+        if (i == seleccionado) {
+            attron(A_REVERSE); // Resaltar opción seleccionada
+            printw("    ► %s ◄\n", opciones[i].c_str());
+            attroff(A_REVERSE);
+        } else {
+            printw("      %s\n", opciones[i].c_str());
+        }
+    }
+}
+
 int main() {
-    cout << instruction() << endl;
-    while (getch() != 10)  // 10 ASCII de ENTER
-    {
-        /* esperar */
+    // Inicializar ncurses
+    initscr();
+    noecho();
+    keypad(stdscr, TRUE);
+    
+    string opciones[4] = {"Jugar", "Instrucciones", "Puntajes", "Salir"};
+    int seleccionado = 0;
+    int tecla;
+    bool salir = false;
+    
+    while (!salir) {
+        // Limpiar pantalla y mostrar menú
+        clear();
+        
+        Logo();
+        Opciones(opciones, 4, seleccionado);
+        
+        printw("\n\n    Usa W/S para navegar y ENTER para seleccionar\n");
+        printw("                    ESC para salir\n");
+        
+        refresh();
+        
+        // Leer tecla
+        tecla = getch();
+        
+        switch (tecla) {
+            case 'w':
+            case 'W':
+                if (seleccionado > 0) {
+                    seleccionado--;
+                }
+                break;
+                
+            case 's':
+            case 'S':
+                if (seleccionado < 3) {  // 4 opciones = indices 0-3
+                    seleccionado++;
+                }
+                break;
+                
+            case 10:  
+                clear();
+                switch (seleccionado) {
+                    case 0: // Jugar
+                        printw("Juego no se ha hecho aún :( \nPresiona ENTER para volver.\n");
+                        refresh();
+                        while (getch() != 10) { /* espera el enter */ }
+                        break;
+                    case 1: // Instrucciones 
+                        printw("%s", instruction().c_str());
+                        refresh();
+                        while (getch() != 10) { /* espera el enter */ }
+                        break;
+                    case 2: // Puntajes
+                        printw("Puntajes por hacer \nPresiona ENTER para volver.\n");
+                        refresh();
+                        while (getch() != 10) { /* espera el enter */ }
+                        break;
+                    case 3: // Salir
+                        salir = true;
+                        break;
+                }
+                break;
+                
+            case 27: // esc
+                salir = true;
+                break;
+        }
     }
     
+    // Finaliza
+    endwin();
+    cout << "Gracias por jugar Pacman" << endl;
     return 0;
 }
