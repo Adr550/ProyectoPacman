@@ -1,8 +1,9 @@
 #include <iostream>
-#include <ncurses.h>  // getch()
-// #include <conio.h> Para kbhit() en Windows.
+#include <ncurses.h>  // Biblioteca para manejo de pantalla en consola
 // Para que lo detecte el sistema:
 // sudo apt-get install libncurses5-dev libncursesw5-dev
+// y a la hora de compilar:
+// g++ src/PacmanView.cpp -o pacman -lncurses
 
 using namespace std;
 
@@ -52,7 +53,7 @@ string Pantalla(string j1, string j2, int pts1, int pts2) {
     ------------------------------------ c ∩ ∩ ∩ ------------------------------------
 
     )"""+j1+"    Highscore       "+j2+R"""(
-    )"""+to_string(pts1)"    000000          "+to_string(pts2)+R"""(
+    )"""+to_string(pts1)+"    000000          "+to_string(pts2)+R"""(
 
             Character / Nickname
             7 -Shadow   "Blinky"
@@ -65,11 +66,6 @@ string Pantalla(string j1, string j2, int pts1, int pts2) {
 
     ------------------------------------ c ∩ ∩ ∩ ------------------------------------
     )""";
-}
-
-int main() {
-    cout << instruction() << endl;
-    return 0;
 }
 
 // Función de logo
