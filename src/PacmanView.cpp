@@ -52,6 +52,11 @@ Posicion pacman2;
 int puntuacion2 = 0;
 int vidas2 = 3;
 
+// NUEVAS VARIABLES para sistema de dificultad
+int tiempo_juego = 0;
+bool fantasmas_activos[4] = {true, false, false, false};
+int velocidad_fantasmas[4] = {500000, 500000, 500000, 300000};
+
 // Mutex para sincronización
 pthread_mutex_t mutex_juego = PTHREAD_MUTEX_INITIALIZER;
 
@@ -175,6 +180,17 @@ void inicializar_personajes() {
     fantasmas.push_back(Posicion(7, 3));
     fantasmas.push_back(Posicion(6, 4));
     fantasmas.push_back(Posicion(7, 4));
+    
+    // Resetear sistema de dificultad
+    tiempo_juego = 0;
+    fantasmas_activos[0] = true;
+    fantasmas_activos[1] = false;
+    fantasmas_activos[2] = false;
+    fantasmas_activos[3] = false;
+    velocidad_fantasmas[0] = 500000;
+    velocidad_fantasmas[1] = 500000;
+    velocidad_fantasmas[2] = 500000;
+    velocidad_fantasmas[3] = 300000;
 }
 
 void dibujar_mapa() {
@@ -203,14 +219,14 @@ void dibujar_mapa() {
                     dibujar = false;
                 }
             } else if (mapa[i][j] == '*') {
-                bool power_up_activo = false;
+                bool power_up_activo_mapa = false;
                 for (const auto& power_up : power_ups) {
                     if (power_up.x == j && power_up.y == i) {
-                        power_up_activo = true;
+                        power_up_activo_mapa = true;
                         break;
                     }
                 }
-                if (power_up_activo) {
+                if (power_up_activo_mapa) {
                     attron(COLOR_PAIR(9));
                     caracter = '*';
                 } else {
@@ -358,37 +374,92 @@ void mover_pacman(int direccion, Posicion& jugador, int& puntos_jugador) {
     pthread_mutex_unlock(&mutex_juego);
 }
 
+// NUEVA FUNCIÓN: Calcular distancia Manhattan
+int distancia_manhattan(Posicion a, Posicion b) {
+    return abs(a.x - b.x) + abs(a.y - b.y);
+}
+
+// FUNCIÓN MODIFICADA: Fantasmas persiguen a Pacman
 void mover_fantasma(int indice) {
     pthread_mutex_lock(&mutex_juego);
     
-    int direcciones[4][2] = {{0,1}, {1,0}, {0,-1}, {-1,0}};
-    vector<int> direcciones_validas;
+    // Determinar objetivo (Pacman más cercano)
+    Posicion objetivo = pacman;
+    if (modo_2jugadores) {
+        int dist1 = distancia_manhattan(fantasmas[indice], pacman);
+        int dist2 = distancia_manhattan(fantasmas[indice], pacman2);
+        if (dist2 < dist1) {
+            objetivo = pacman2;
+        }
+    }
     
+    int direcciones[4][2] = {{0,1}, {1,0}, {0,-1}, {-1,0}};
+    int mejor_direccion = -1;
+    int menor_distancia = 9999;
+    
+    // Encuentra la dirección que acerca más al objetivo
     for (int i = 0; i < 4; i++) {
         int nuevo_x = fantasmas[indice].x + direcciones[i][0];
         int nuevo_y = fantasmas[indice].y + direcciones[i][1];
         
         if (es_movimiento_valido(nuevo_x, nuevo_y)) {
-            direcciones_validas.push_back(i);
+            Posicion nueva_pos(nuevo_x, nuevo_y);
+            int distancia = distancia_manhattan(nueva_pos, objetivo);
+            
+            if (distancia < menor_distancia) {
+                menor_distancia = distancia;
+                mejor_direccion = i;
+            }
         }
     }
     
-    if (!direcciones_validas.empty()) {
-        int dir_aleatoria = direcciones_validas[rand() % direcciones_validas.size()];
-        fantasmas[indice].x += direcciones[dir_aleatoria][0];
-        fantasmas[indice].y += direcciones[dir_aleatoria][1];
+    // Si hay power-up activo, huir en lugar de perseguir
+    if (power_up_activo && mejor_direccion != -1) {
+        vector<int> direcciones_escape;
+        for (int i = 0; i < 4; i++) {
+            int nuevo_x = fantasmas[indice].x + direcciones[i][0];
+            int nuevo_y = fantasmas[indice].y + direcciones[i][1];
+            
+            if (es_movimiento_valido(nuevo_x, nuevo_y)) {
+                Posicion nueva_pos(nuevo_x, nuevo_y);
+                int distancia = distancia_manhattan(nueva_pos, objetivo);
+                
+                if (distancia > distancia_manhattan(fantasmas[indice], objetivo)) {
+                    direcciones_escape.push_back(i);
+                }
+            }
+        }
+        
+        if (!direcciones_escape.empty()) {
+            mejor_direccion = direcciones_escape[rand() % direcciones_escape.size()];
+        }
+    }
+    
+    // Mover al fantasma
+    if (mejor_direccion != -1) {
+        fantasmas[indice].x += direcciones[mejor_direccion][0];
+        fantasmas[indice].y += direcciones[mejor_direccion][1];
         aplicar_teletransporte(fantasmas[indice]);
     }
     
     pthread_mutex_unlock(&mutex_juego);
 }
 
+// FUNCIÓN MODIFICADA: Hilo del fantasma con velocidad variable
 void* hilo_fantasma(void* arg) {
     int indice = *(int*)arg;
     
     while (!game_over) {
-        mover_fantasma(indice);
-        usleep(400000 + (rand() % 200000));
+        if (fantasmas_activos[indice]) {
+            mover_fantasma(indice);
+        }
+        
+        // Si hay power-up, los fantasmas se vuelven SUPER lentos
+        if (power_up_activo) {
+            usleep(1000000); // 1 segundo (muy lento)
+        } else {
+            usleep(velocidad_fantasmas[indice]);
+        }
     }
     
     return NULL;
@@ -404,6 +475,50 @@ void* hilo_power_up(void* arg) {
                 power_up_activo = false;
             }
         }
+        pthread_mutex_unlock(&mutex_juego);
+    }
+    return NULL;
+}
+
+// NUEVA FUNCIÓN: Control de dificultad progresiva
+void* hilo_dificultad(void* arg) {
+    while (!game_over) {
+        sleep(1);
+        pthread_mutex_lock(&mutex_juego);
+        
+        tiempo_juego++;
+        
+        // A los 10 segundos: activar fantasma 2
+        if (tiempo_juego == 10 && !fantasmas_activos[1]) {
+            fantasmas_activos[1] = true;
+        }
+        
+        // A los 20 segundos: activar fantasma 3
+        if (tiempo_juego == 20 && !fantasmas_activos[2]) {
+            fantasmas_activos[2] = true;
+        }
+        
+        // A los 30 segundos: activar fantasma 4 (el rápido)
+        if (tiempo_juego == 30 && !fantasmas_activos[3]) {
+            fantasmas_activos[3] = true;
+        }
+        
+        // A los 40 segundos: aumentar velocidad de todos
+        if (tiempo_juego == 40) {
+            for (int i = 0; i < 3; i++) {
+                velocidad_fantasmas[i] = 350000;
+            }
+            velocidad_fantasmas[3] = 250000;
+        }
+        
+        // A los 60 segundos: modo difícil extremo
+        if (tiempo_juego == 60) {
+            for (int i = 0; i < 3; i++) {
+                velocidad_fantasmas[i] = 300000;
+            }
+            velocidad_fantasmas[3] = 200000;
+        }
+        
         pthread_mutex_unlock(&mutex_juego);
     }
     return NULL;
@@ -483,6 +598,11 @@ void jugar() {
     pthread_t hilo_power;
     pthread_create(&hilo_power, NULL, hilo_power_up, NULL);
     hilos.push_back(hilo_power);
+    
+    // Hilo de dificultad progresiva
+    pthread_t hilo_dif;
+    pthread_create(&hilo_dif, NULL, hilo_dificultad, NULL);
+    hilos.push_back(hilo_dif);
     
     pthread_t hilo_entrada;
     pthread_create(&hilo_entrada, NULL, hilo_entrada_usuario, NULL);
