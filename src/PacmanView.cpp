@@ -299,7 +299,7 @@ void aplicar_teletransporte(Posicion& pos) {
     }
 }
 
-void procesar_colision(Posicion& jugador, int& vidas_jugador, int& puntos_jugador) {
+void colision(Posicion& jugador, int& vidas_jugador, int& puntos_jugador, bool es_jugador2 = false) {
     for (int i = 0; i < fantasmas.size(); i++) {
         if (fantasmas[i] == jugador) {
             if (power_up_activo) {
@@ -308,10 +308,22 @@ void procesar_colision(Posicion& jugador, int& vidas_jugador, int& puntos_jugado
             } else {
                 vidas_jugador--;
                 if (vidas_jugador <= 0) {
-                    game_over = true;
+                    // En modo 2 jugadores verificar si el otro jugador sigue vivo
+                    if (modo_2jugadores) {
+                        int& vidas_otro = es_jugador2 ? vidas : vidas2;
+                        if (vidas_otro <= 0) {
+                            game_over = true; // ambos pierden 
+                        }
+                    } else {
+                        game_over = true;
+                    }
                 } else {
-                    jugador = (modo_2jugadores && &jugador == &pacman2) ? 
-                             Posicion(11, 5) : Posicion(7, 5);
+                    // reposicionar al jugador en su punto de inicio
+                    if (es_jugador2) {
+                        jugador = Posicion(11, 5);
+                    } else {
+                        jugador = modo_2jugadores ? Posicion(3, 5) : Posicion(7, 5);
+                    }
                     pthread_mutex_unlock(&mutex_juego);
                     usleep(800000);
                     pthread_mutex_lock(&mutex_juego);
@@ -367,23 +379,25 @@ void mover_pacman(int direccion, Posicion& jugador, int& puntos_jugador) {
             }
         }
         
-        // Procesar colisión
-        procesar_colision(jugador, (&jugador == &pacman) ? vidas : vidas2, puntos_jugador);
+        // procesar colisión cambios
+        bool es_jugador2 = (&jugador == &pacman2);
+        int& vidas_actual = es_jugador2 ? vidas2 : vidas;
+        colision(jugador, vidas_actual, puntos_jugador, es_jugador2);
     }
     
     pthread_mutex_unlock(&mutex_juego);
 }
 
-// NUEVA FUNCIÓN: Calcular distancia Manhattan
+//Calcular distancia Manhattan
 int distancia_manhattan(Posicion a, Posicion b) {
     return abs(a.x - b.x) + abs(a.y - b.y);
 }
 
-// FUNCIÓN MODIFICADA: Fantasmas persiguen a Pacman
-void mover_fantasma(int indice) {
+//Fantasmas persiguen a pacman
+void moverfantasma(int indice) {
     pthread_mutex_lock(&mutex_juego);
     
-    // Determinar objetivo (Pacman más cercano)
+    // Determinar objetivo, el pacman mas cercano
     Posicion objetivo = pacman;
     if (modo_2jugadores) {
         int dist1 = distancia_manhattan(fantasmas[indice], pacman);
@@ -413,7 +427,7 @@ void mover_fantasma(int indice) {
         }
     }
     
-    // Si hay power-up activo, huir en lugar de perseguir
+    // Si hay power-up activo huye en lugar de perseguir
     if (power_up_activo && mejor_direccion != -1) {
         vector<int> direcciones_escape;
         for (int i = 0; i < 4; i++) {
@@ -445,13 +459,13 @@ void mover_fantasma(int indice) {
     pthread_mutex_unlock(&mutex_juego);
 }
 
-// FUNCIÓN MODIFICADA: Hilo del fantasma con velocidad variable
+// Hilo del fantasma con velocidad variable
 void* hilo_fantasma(void* arg) {
     int indice = *(int*)arg;
     
     while (!game_over) {
         if (fantasmas_activos[indice]) {
-            mover_fantasma(indice);
+            moverfantasma(indice);
         }
         
         // Si hay power-up, los fantasmas se vuelven SUPER lentos
@@ -480,7 +494,7 @@ void* hilo_power_up(void* arg) {
     return NULL;
 }
 
-// NUEVA FUNCIÓN: Control de dificultad progresiva
+// Control de dificultad progresiva
 void* hilo_dificultad(void* arg) {
     while (!game_over) {
         sleep(1);
@@ -488,22 +502,22 @@ void* hilo_dificultad(void* arg) {
         
         tiempo_juego++;
         
-        // A los 10 segundos: activar fantasma 2
+        // A los 10 segundos activar fantasma 2
         if (tiempo_juego == 10 && !fantasmas_activos[1]) {
             fantasmas_activos[1] = true;
         }
         
-        // A los 20 segundos: activar fantasma 3
+        // A los 20 segundos activar fantasma 3
         if (tiempo_juego == 20 && !fantasmas_activos[2]) {
             fantasmas_activos[2] = true;
         }
         
-        // A los 30 segundos: activar fantasma 4 (el rápido)
+        // A los 30 segundos activar fantasma 4 (el rápido)
         if (tiempo_juego == 30 && !fantasmas_activos[3]) {
             fantasmas_activos[3] = true;
         }
         
-        // A los 40 segundos: aumentar velocidad de todos
+        // A los 40 segundos aumentar velocidad de todos
         if (tiempo_juego == 40) {
             for (int i = 0; i < 3; i++) {
                 velocidad_fantasmas[i] = 350000;
@@ -511,7 +525,7 @@ void* hilo_dificultad(void* arg) {
             velocidad_fantasmas[3] = 250000;
         }
         
-        // A los 60 segundos: modo difícil extremo
+        // A los 60 segundos modo difícil extremo
         if (tiempo_juego == 60) {
             for (int i = 0; i < 3; i++) {
                 velocidad_fantasmas[i] = 300000;
@@ -620,21 +634,40 @@ void jugar() {
         pthread_join(hilo, NULL);
     }
     
-    // Pantalla final ultra compacta
+    // Pantalla final mejorada - MEJORA APLICADA
     clear();
+    
     if (puntos.size() == 0 && power_ups.size() == 0) {
-        mvprintw(3, 5, "GANASTE!");
+        attron(COLOR_PAIR(2));
+        mvprintw(2, 4, "VICTORIA!");
+        attroff(COLOR_PAIR(2));
     } else {
-        mvprintw(3, 5, "GAME OVER");
+        attron(COLOR_PAIR(5));
+        mvprintw(2, 3, "GAME OVER");
+        attroff(COLOR_PAIR(5));
     }
     
     if (modo_2jugadores) {
-        mvprintw(4, 3, "J1:%d J2:%d", puntuacion, puntuacion2);
+        mvprintw(4, 1, "Jugador 1: %d pts", puntuacion);
+        mvprintw(5, 1, "Jugador 2: %d pts", puntuacion2);
+        
+        // Determinar ganador
+        if (puntuacion > puntuacion2) {
+            attron(COLOR_PAIR(2));
+            mvprintw(7, 2, "Gana J1!");
+            attroff(COLOR_PAIR(2));
+        } else if (puntuacion2 > puntuacion) {
+            attron(COLOR_PAIR(10));
+            mvprintw(7, 2, "Gana J2!");
+            attroff(COLOR_PAIR(10));
+        } else {
+            mvprintw(7, 3, "EMPATE!");
+        }
     } else {
-        mvprintw(4, 5, "P:%d", puntuacion);
+        mvprintw(4, 3, "Puntos: %d", puntuacion);
     }
     
-    mvprintw(6, 3, "ENTER continuar");
+    mvprintw(9, 2, "ENTER continuar");
     refresh();
     
     nodelay(stdscr, FALSE);
